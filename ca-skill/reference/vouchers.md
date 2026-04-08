@@ -127,6 +127,13 @@ Bill types: `New Ref`, `Agst Ref`, `Advance`, `On Account`.
 
 ## Purchase (Vendor bill) — accounting-only
 
+For accounting-only purchases (no inventory items), set `ISINVOICE=No` and **emit the vendor/party ledger entry first**. This ensures:
+
+- The Day Book "Particulars" column shows the **vendor name** instead of the purchase ledger.
+- The voucher defaults to the plain "As Voucher" view, which is cleaner for non-item bills.
+
+The same party-first ordering principle applies to any plain (non-item) voucher where you want the party name to appear in reports.
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <ENVELOPE>
@@ -147,8 +154,21 @@ Bill types: `New Ref`, `Agst Ref`, `Advance`, `On Account`.
             <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>
             <VOUCHERNUMBER>BILL_NO</VOUCHERNUMBER>
             <NARRATION>NARRATION_TEXT</NARRATION>
-            <ISINVOICE>Yes</ISINVOICE>
+            <ISINVOICE>No</ISINVOICE>
             <PARTYLEDGERNAME>VENDOR_LEDGER</PARTYLEDGERNAME>
+
+            <!-- Party (vendor) — FIRST so Particulars shows vendor name -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>VENDOR_LEDGER</LEDGERNAME>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+              <BILLALLOCATIONS.LIST>
+                <NAME>BILL_NO</NAME>
+                <BILLTYPE>New Ref</BILLTYPE>
+                <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+              </BILLALLOCATIONS.LIST>
+            </ALLLEDGERENTRIES.LIST>
 
             <!-- Purchase / expense -->
             <ALLLEDGERENTRIES.LIST>
@@ -162,19 +182,6 @@ Bill types: `New Ref`, `Agst Ref`, `Advance`, `On Account`.
               <LEDGERNAME>GST_INPUT_LEDGER</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <AMOUNT>-GST_AMOUNT</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
-
-            <!-- Party (vendor) -->
-            <ALLLEDGERENTRIES.LIST>
-              <LEDGERNAME>VENDOR_LEDGER</LEDGERNAME>
-              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
-              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-              <AMOUNT>TOTAL_AMOUNT</AMOUNT>
-              <BILLALLOCATIONS.LIST>
-                <NAME>BILL_NO</NAME>
-                <BILLTYPE>New Ref</BILLTYPE>
-                <AMOUNT>TOTAL_AMOUNT</AMOUNT>
-              </BILLALLOCATIONS.LIST>
             </ALLLEDGERENTRIES.LIST>
           </VOUCHER>
         </TALLYMESSAGE>

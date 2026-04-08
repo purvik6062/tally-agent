@@ -58,6 +58,7 @@ Use when the user asks to:
 6. **Escape XML**: narration/party names may contain `&` → use `&amp;` in XML.
 7. **Posting is write operation**: confirm intent (and company) before any create/alter/cancel.
 8. **Prefer bill-wise allocations** for party ledgers to keep outstandings correct (see `reference/vouchers.md`).
+9. **Accounting-only vouchers (no inventory items)**: set `<ISINVOICE>No</ISINVOICE>` and place the **party ledger entry first** in the `ALLLEDGERENTRIES.LIST` sequence. This makes the Day Book "Particulars" column show the party name (not the expense/purchase ledger) and defaults the voucher to the clean "As Voucher" view. Only use `ISINVOICE=Yes` for item invoices that go through `reference/inventory.md`.
 
 ## Step 0: Check TallyPrime server
 
