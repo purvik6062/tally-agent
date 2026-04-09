@@ -1,7 +1,7 @@
 ---
 emoji: 🧾
 name: tally-prime-ca
-version: 2.0.0
+version: 1.0.2
 author: Maxxit
 description: >-
   Full-service CA skill for TallyPrime running locally. Read accounting reports
