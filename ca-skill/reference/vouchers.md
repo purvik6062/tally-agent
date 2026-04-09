@@ -125,14 +125,178 @@ Bill types: `New Ref`, `Agst Ref`, `Advance`, `On Account`.
 </ENVELOPE>
 ```
 
-## Purchase (Vendor bill) — accounting-only
+## Purchase — three modes
 
-For accounting-only purchases (no inventory items), set `ISINVOICE=No` and **emit the vendor/party ledger entry first**. This ensures:
+Choose the mode based on what the client needs. All three use `VCHTYPE="Purchase"`.
 
-- The Day Book "Particulars" column shows the **vendor name** instead of the purchase ledger.
-- The voucher defaults to the plain "As Voucher" view, which is cleaner for non-item bills.
+| Mode | `OBJVIEW` | `ISINVOICE` | Has inventory | Use when |
+|---|---|---|---|---|
+| Item Invoice | `Invoice Voucher View` | Yes | Yes (`ALLINVENTORYENTRIES`) | Stock items with Rate/Qty/Amount columns |
+| Accounting Invoice | `Invoice Voucher View` | Yes | No | Invoice layout but ledger-only (services, expenses) |
+| As Voucher | `Accounting Voucher View` | No | No | Classic By/To accounting view; best fallback |
 
-The same party-first ordering principle applies to any plain (non-item) voucher where you want the party name to appear in reports.
+### Mode 1 — Item Invoice (stock-based, Rate/Qty/Amount)
+
+`OBJVIEW="Invoice Voucher View"` + `ISINVOICE=Yes` + `ALLINVENTORYENTRIES.LIST`. Use when you want full stock-item detail and the invoice layout.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ENVELOPE>
+  <HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Purchase" ACTION="Create" OBJVIEW="Invoice Voucher View">
+            <GUID>GUID_VALUE</GUID>
+            <DATE>YYYYMMDD</DATE>
+            <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>
+            <VOUCHERNUMBER>INVOICE_NO</VOUCHERNUMBER>
+            <PARTYLEDGERNAME>VENDOR_LEDGER</PARTYLEDGERNAME>
+            <ISINVOICE>Yes</ISINVOICE>
+
+            <!-- Party (vendor) — credit side -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>VENDOR_LEDGER</LEDGERNAME>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+              <BILLALLOCATIONS.LIST>
+                <NAME>INVOICE_NO</NAME>
+                <BILLTYPE>New Ref</BILLTYPE>
+                <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+                <BILLDATE>YYYYMMDD</BILLDATE>
+              </BILLALLOCATIONS.LIST>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- Stock item line(s) — repeat for each item -->
+            <ALLINVENTORYENTRIES.LIST>
+              <STOCKITEM>STOCK_ITEM_NAME</STOCKITEM>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <RATE>RATE_PER_UNIT</RATE>
+              <AMOUNT>LINE_AMOUNT</AMOUNT>
+              <ACTUALQTY>QUANTITY</ACTUALQTY>
+              <BILLEDQTY>QUANTITY</BILLEDQTY>
+              <BATCHALLOCATIONS.LIST>
+                <GODOWNNAME>Main Location</GODOWNNAME>
+                <BATCHNAME>Primary Batch</BATCHNAME>
+                <QUANTITY>QUANTITY</QUANTITY>
+              </BATCHALLOCATIONS.LIST>
+            </ALLINVENTORYENTRIES.LIST>
+
+            <!-- Purchase ledger (taxable value) -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>PURCHASE_LEDGER</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-TAXABLE_VALUE</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- GST Input CGST -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Input Cgst @ 9 %</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-CGST_AMOUNT</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- GST Input SGST -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Input Sgst @ 9 %</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-SGST_AMOUNT</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>
+```
+
+### Mode 2 — Accounting Invoice (invoice layout, no inventory)
+
+`OBJVIEW="Invoice Voucher View"` + `ISINVOICE=Yes` + ledger entries only (no `ALLINVENTORYENTRIES`). Renders the party header and invoice columns without requiring stock items. Supports round-off entry.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ENVELOPE>
+  <HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Purchase" ACTION="Create" OBJVIEW="Invoice Voucher View">
+            <GUID>GUID_VALUE</GUID>
+            <DATE>YYYYMMDD</DATE>
+            <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>
+            <VOUCHERNUMBER>INVOICE_NO</VOUCHERNUMBER>
+            <PARTYLEDGERNAME>VENDOR_LEDGER</PARTYLEDGERNAME>
+            <ISINVOICE>Yes</ISINVOICE>
+            <NARRATION>NARRATION_TEXT</NARRATION>
+
+            <!-- Party (vendor) — credit side -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>VENDOR_LEDGER</LEDGERNAME>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+              <BILLALLOCATIONS.LIST>
+                <NAME>INVOICE_NO</NAME>
+                <BILLTYPE>New Ref</BILLTYPE>
+                <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+                <BILLDATE>YYYYMMDD</BILLDATE>
+              </BILLALLOCATIONS.LIST>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- Purchase / expense ledger -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>PURCHASE_LEDGER</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-TAXABLE_VALUE</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- GST Input CGST -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Input Cgst @ 9 %</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-CGST_AMOUNT</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- GST Input SGST -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Input Sgst @ 9 %</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-SGST_AMOUNT</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- Round off (optional) -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Round Off</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-ROUND_OFF</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>
+```
+
+### Mode 3 — As Voucher (classic accounting entry, fallback)
+
+`OBJVIEW="Accounting Voucher View"` + `ISINVOICE=No`. Tally renders this with By/To columns. **Party entry must come first** so the Day Book "Particulars" column shows the vendor name.
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -149,13 +313,13 @@ The same party-first ordering principle applies to any plain (non-item) voucher 
       <REQUESTDATA>
         <TALLYMESSAGE xmlns:UDF="TallyUDF">
           <VOUCHER VCHTYPE="Purchase" ACTION="Create" OBJVIEW="Accounting Voucher View">
-            <GUID>UNIQUE_GUID</GUID>
+            <GUID>GUID_VALUE</GUID>
             <DATE>YYYYMMDD</DATE>
             <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>
-            <VOUCHERNUMBER>BILL_NO</VOUCHERNUMBER>
-            <NARRATION>NARRATION_TEXT</NARRATION>
-            <ISINVOICE>No</ISINVOICE>
+            <VOUCHERNUMBER>INVOICE_NO</VOUCHERNUMBER>
             <PARTYLEDGERNAME>VENDOR_LEDGER</PARTYLEDGERNAME>
+            <ISINVOICE>No</ISINVOICE>
+            <NARRATION>NARRATION_TEXT</NARRATION>
 
             <!-- Party (vendor) — FIRST so Particulars shows vendor name -->
             <ALLLEDGERENTRIES.LIST>
@@ -163,25 +327,34 @@ The same party-first ordering principle applies to any plain (non-item) voucher 
               <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
               <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
               <AMOUNT>TOTAL_AMOUNT</AMOUNT>
-              <BILLALLOCATIONS.LIST>
-                <NAME>BILL_NO</NAME>
-                <BILLTYPE>New Ref</BILLTYPE>
-                <AMOUNT>TOTAL_AMOUNT</AMOUNT>
-              </BILLALLOCATIONS.LIST>
             </ALLLEDGERENTRIES.LIST>
 
-            <!-- Purchase / expense -->
+            <!-- Purchase / expense ledger -->
             <ALLLEDGERENTRIES.LIST>
               <LEDGERNAME>PURCHASE_LEDGER</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-              <AMOUNT>-BASE_AMOUNT</AMOUNT>
+              <AMOUNT>-TAXABLE_VALUE</AMOUNT>
             </ALLLEDGERENTRIES.LIST>
 
-            <!-- GST Input (optional) -->
+            <!-- GST Input CGST -->
             <ALLLEDGERENTRIES.LIST>
-              <LEDGERNAME>GST_INPUT_LEDGER</LEDGERNAME>
+              <LEDGERNAME>Input Cgst @ 9 %</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
-              <AMOUNT>-GST_AMOUNT</AMOUNT>
+              <AMOUNT>-CGST_AMOUNT</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- GST Input SGST -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Input Sgst @ 9 %</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-SGST_AMOUNT</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- Round off (optional) -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Round Off</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-ROUND_OFF</AMOUNT>
             </ALLLEDGERENTRIES.LIST>
           </VOUCHER>
         </TALLYMESSAGE>
