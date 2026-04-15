@@ -171,18 +171,21 @@ Always confirm before creating/writing data. Respond in the same language the us
 
 # ─── Tool runner (same for both providers) ─────────────────────────────
 def run_tool(name: str, inp: dict) -> str:
-    if name == "get_day_book":               return get_day_book(inp["from_date"], inp["to_date"])
-    if name == "get_trial_balance":          return get_trial_balance(inp["from_date"], inp["to_date"])
-    if name == "get_ledger_vouchers":        return get_ledger_vouchers(inp["ledger_name"], inp["from_date"], inp["to_date"])
-    if name == "get_outstanding_receivables":return get_outstanding_receivables()
-    if name == "get_outstanding_payables":   return get_outstanding_payables()
-    if name == "create_ledger":              return create_ledger(inp["name"], inp["group"])
-    if name == "create_sales_invoice":       return create_sales_invoice(**inp)
-    if name == "create_purchase_bill":       return create_purchase_bill(**inp)
-    if name == "create_receipt":             return create_receipt(**inp)
-    if name == "create_payment":             return create_payment(**inp)
-    if name == "get_gst_summary":            return get_gst_summary(inp["from_date"], inp["to_date"])
-    return "Tool not found."
+    try:
+        if name == "get_day_book":               return get_day_book(inp["from_date"], inp["to_date"])
+        if name == "get_trial_balance":          return get_trial_balance(inp["from_date"], inp["to_date"])
+        if name == "get_ledger_vouchers":        return get_ledger_vouchers(inp["ledger_name"], inp["from_date"], inp["to_date"])
+        if name == "get_outstanding_receivables":return get_outstanding_receivables()
+        if name == "get_outstanding_payables":   return get_outstanding_payables()
+        if name == "create_ledger":              return create_ledger(inp["name"], inp["group"])
+        if name == "create_sales_invoice":       return create_sales_invoice(**inp)
+        if name == "create_purchase_bill":       return create_purchase_bill(**inp)
+        if name == "create_receipt":             return create_receipt(**inp)
+        if name == "create_payment":             return create_payment(**inp)
+        if name == "get_gst_summary":            return get_gst_summary(inp["from_date"], inp["to_date"])
+        return "Tool not found."
+    except Exception as exc:
+        return f"ERROR while running {name}: {exc}"
 
 
 # ─── OpenAI format converter ────────────────────────────────────────────

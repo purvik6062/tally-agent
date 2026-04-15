@@ -59,6 +59,8 @@ Use when the user asks to:
 7. **Posting is write operation**: confirm intent (and company) before any create/alter/cancel.
 8. **Prefer bill-wise allocations** for party ledgers to keep outstandings correct (see `reference/vouchers.md`).
 9. **Accounting-only vouchers (no inventory items)**: set `<ISINVOICE>No</ISINVOICE>` and place the **party ledger entry first** in the `ALLLEDGERENTRIES.LIST` sequence. This makes the Day Book "Particulars" column show the party name (not the expense/purchase ledger) and defaults the voucher to the clean "As Voucher" view. Only use `ISINVOICE=Yes` for item invoices that go through `reference/inventory.md`.
+10. **Voucher imports must use `REPORTNAME=Vouchers`**. Do not use `All Masters` when creating vouchers. `All Masters` is only for master objects (ledger/group/stock item/etc).
+11. **Normalize user dates before posting**: if user provides dates like `02-Feb-2026` / `02/02/2026`, convert to `20260202` in XML.
 
 ## Step 0: Check TallyPrime server
 
@@ -99,6 +101,25 @@ Quick group defaults (common CA mapping):
 ## Step 3: Post vouchers (core)
 
 Use `REPORTNAME=Vouchers` and always include `GUID`, `DATE`, and `VOUCHERTYPENAME`. Full templates (including bill-wise allocations, returns, contra) are in `reference/vouchers.md`.
+
+### If import returns `EXCEPTIONS=1` with no `LINEERROR`
+
+Treat this as a schema/config mismatch and debug in this order:
+
+1. Post a **minimal accounting voucher** (party + one counter ledger only) with:
+   - `OBJVIEW="Accounting Voucher View"`
+   - `ISINVOICE=No`
+   - `REPORTNAME=Vouchers`
+2. If minimal passes, add fields one-by-one:
+   - GST lines
+   - bill allocations
+   - narration
+   - optional round-off
+3. If minimal fails:
+   - Confirm exact `SVCURRENTCOMPANY` spelling
+   - Confirm voucher type exists and allows accounting mode
+   - Confirm date is within current FY and in `YYYYMMDD`
+   - Export one manually entered voucher from Tally UI and replicate tags/signs exactly
 
 Supported voucher types in this skill:
 

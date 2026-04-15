@@ -27,6 +27,7 @@ This file is a practical troubleshooting guide for CA automation using TallyPrim
 | `Voucher totals do not match!` | Dr/Cr totals mismatch (or wrong sign conventions) | Ensure totals balance; export a known-good voucher from UI and match signs/tags |
 | `DESC not found` | Incorrect envelope structure / wrong request shape | Compare to base templates; ensure `REQUESTDESC` and `REQUESTDATA` are placed correctly |
 | `CREATED=0` with `ERRORS>0` | Generic import failure | Inspect response details; reduce to minimal fields; add fields incrementally |
+| `EXCEPTIONS=1` and no `LINEERROR` | Voucher XML shape conflicts with company voucher config (view/mode/signs/tags) | Force minimal accounting voucher (`REPORTNAME=Vouchers`, `OBJVIEW=Accounting Voucher View`, `ISINVOICE=No`), then add fields gradually |
 | Silent wrong-company data | Wrong `SVCURRENTCOMPANY` | Confirm exact company name as seen in Tally |
 
 ## Import response XML (what to look for)
@@ -63,6 +64,52 @@ When a write fails:
 1. Retry with **minimal** voucher: only required tags + two ledger lines.
 2. If minimal works, add optional fields one at a time (bill allocations, GST ledgers, inventory lines).
 3. If minimal fails, export a similar voucher created in UI and diff structure/signs.
+
+### Minimal purchase probe (for silent exception cases)
+
+Use this first when batch import keeps failing:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ENVELOPE>
+  <HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Purchase" ACTION="Create" OBJVIEW="Accounting Voucher View">
+            <GUID>UNIQUE_GUID</GUID>
+            <DATE>YYYYMMDD</DATE>
+            <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>
+            <VOUCHERNUMBER>TEST-001</VOUCHERNUMBER>
+            <ISINVOICE>No</ISINVOICE>
+            <PARTYLEDGERNAME>VENDOR_LEDGER</PARTYLEDGERNAME>
+
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>VENDOR_LEDGER</LEDGERNAME>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <AMOUNT>1000.00</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>PURCHASE_LEDGER</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-1000.00</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>
+```
 
 ## Best practice: “export-first” for fragile setups
 

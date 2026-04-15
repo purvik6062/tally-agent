@@ -2,6 +2,14 @@
 
 This file contains **full voucher XML templates** for CA workflows, including returns (Credit/Debit Notes), Contra, bill-wise allocation, and safe update/cancel patterns.
 
+## Hard guardrails (do not skip)
+
+- For voucher creation/alter/cancel, always use `REPORTNAME=Vouchers`.
+- Use `REPORTNAME=All Masters` only for master creation (ledgers/groups/items), never for vouchers.
+- If `ISINVOICE=No`, use `OBJVIEW="Accounting Voucher View"`.
+- If `ISINVOICE=Yes` and no inventory entries are sent, use `OBJVIEW="Invoice Voucher View"` only when the company voucher configuration supports accounting-invoice mode.
+- Convert all dates to `YYYYMMDD` before embedding in XML.
+
 ## Conventions (must follow)
 
 - Always set `SVCURRENTCOMPANY`.
@@ -134,6 +142,8 @@ Choose the mode based on what the client needs. All three use `VCHTYPE="Purchase
 | Item Invoice | `Invoice Voucher View` | Yes | Yes (`ALLINVENTORYENTRIES`) | Stock items with Rate/Qty/Amount columns |
 | Accounting Invoice | `Invoice Voucher View` | Yes | No | Invoice layout but ledger-only (services, expenses) |
 | As Voucher | `Accounting Voucher View` | No | No | Classic By/To accounting view; best fallback |
+
+If imports fail with `EXCEPTIONS=1` and no `LINEERROR`, immediately retry with **Mode 3 (As Voucher)** minimal structure first.
 
 ### Mode 1 — Item Invoice (stock-based, Rate/Qty/Amount)
 
