@@ -1,7 +1,7 @@
 ---
 emoji: 🧾
 name: tally-prime-ca
-version: 1.0.2
+version: 1.0.4
 author: Maxxit
 description: >-
   Full-service CA skill for TallyPrime running locally. Read accounting reports
@@ -59,6 +59,8 @@ Use when the user asks to:
 7. **Posting is write operation**: confirm intent (and company) before any create/alter/cancel.
 8. **Prefer bill-wise allocations** for party ledgers to keep outstandings correct (see `reference/vouchers.md`).
 9. **Accounting-only vouchers (no inventory items)**: set `<ISINVOICE>No</ISINVOICE>` and place the **party ledger entry first** in the `ALLLEDGERENTRIES.LIST` sequence. This makes the Day Book "Particulars" column show the party name (not the expense/purchase ledger) and defaults the voucher to the clean "As Voucher" view. Only use `ISINVOICE=Yes` for item invoices that go through `reference/inventory.md`.
+10. **Accounting Invoice mode — use `LEDGERENTRIES.LIST`**: when `OBJVIEW="Invoice Voucher View"` is set (Mode 2 in `reference/vouchers.md`), every ledger block **must** use `<LEDGERENTRIES.LIST>`, not `<ALLLEDGERENTRIES.LIST>`. Tally silently ignores `ALLLEDGERENTRIES` in this view, causing the voucher to be saved with no entries and the error "No accounting or inventory entries are available."
+11. **Voucher classes and GST header fields**: if the voucher type relies on a class (e.g. `Purchase @ 18 %`) to drive GST splits, include `<CLASSNAME>…</CLASSNAME>` in the voucher header alongside `<CMPGSTIN>`, `<PARTYGSTIN>`, `<GSTREGISTRATIONTYPE>`, and `<PLACEOFSUPPLY>`. Without `<CLASSNAME>`, Tally assumes the class will supply ledger entries and rejects a ledger-only payload. See the "Mode 2 variant — Accounting Invoice with a voucher class" section in `reference/vouchers.md`.
 
 ## Step 0: Check TallyPrime server
 

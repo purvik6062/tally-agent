@@ -222,6 +222,9 @@ Choose the mode based on what the client needs. All three use `VCHTYPE="Purchase
 
 `OBJVIEW="Invoice Voucher View"` + `ISINVOICE=Yes` + ledger entries only (no `ALLINVENTORYENTRIES`). Renders the party header and invoice columns without requiring stock items. Supports round-off entry.
 
+> **Critical — use `LEDGERENTRIES.LIST`, not `ALLLEDGERENTRIES.LIST`**
+> When `OBJVIEW="Invoice Voucher View"` is set, Tally silently ignores every `<ALLLEDGERENTRIES.LIST>` block and saves the voucher with no accounting entries, producing the error "No accounting or inventory entries are available." Switch every ledger block to `<LEDGERENTRIES.LIST>` for this mode.
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <ENVELOPE>
@@ -246,7 +249,7 @@ Choose the mode based on what the client needs. All three use `VCHTYPE="Purchase
             <NARRATION>NARRATION_TEXT</NARRATION>
 
             <!-- Party (vendor) — credit side -->
-            <ALLLEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>VENDOR_LEDGER</LEDGERNAME>
               <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
               <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
@@ -257,41 +260,108 @@ Choose the mode based on what the client needs. All three use `VCHTYPE="Purchase
                 <AMOUNT>TOTAL_AMOUNT</AMOUNT>
                 <BILLDATE>YYYYMMDD</BILLDATE>
               </BILLALLOCATIONS.LIST>
-            </ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
 
             <!-- Purchase / expense ledger -->
-            <ALLLEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>PURCHASE_LEDGER</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <AMOUNT>-TAXABLE_VALUE</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
 
             <!-- GST Input CGST -->
-            <ALLLEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>Input Cgst @ 9 %</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <AMOUNT>-CGST_AMOUNT</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
 
             <!-- GST Input SGST -->
-            <ALLLEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>Input Sgst @ 9 %</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <AMOUNT>-SGST_AMOUNT</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
 
             <!-- Round off (optional) -->
-            <ALLLEDGERENTRIES.LIST>
+            <LEDGERENTRIES.LIST>
               <LEDGERNAME>Round Off</LEDGERNAME>
               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
               <AMOUNT>-ROUND_OFF</AMOUNT>
-            </ALLLEDGERENTRIES.LIST>
+            </LEDGERENTRIES.LIST>
           </VOUCHER>
         </TALLYMESSAGE>
       </REQUESTDATA>
     </IMPORTDATA>
   </BODY>
 </ENVELOPE>
+```
+
+### Mode 2 variant — Accounting Invoice with a voucher class
+
+If the Purchase voucher type is configured to use a **voucher class** (e.g. `Purchase @ 18 %`) for automatic GST splits, the XML must declare the class and supply the GST identification fields. Without `<CLASSNAME>`, Tally assumes the class will provide ledger entries and rejects a ledger-only payload with "No accounting or inventory entries are available."
+
+Required additions when a class is in use:
+
+| Field | Where | Purpose |
+|---|---|---|
+| `<CLASSNAME>` | `<VOUCHER>` header | Activates the voucher class (exact name as defined in Tally) |
+| `<CMPGSTIN>` | `<VOUCHER>` header | Company GSTIN (15-char) |
+| `<PARTYGSTIN>` | `<VOUCHER>` header | Vendor GSTIN |
+| `<GSTREGISTRATIONTYPE>` | `<VOUCHER>` header | e.g. `Regular` |
+| `<PLACEOFSUPPLY>` | `<VOUCHER>` header | State name for IGST/CGST+SGST determination |
+
+```xml
+<VOUCHER VCHTYPE="Purchase" ACTION="Create" OBJVIEW="Invoice Voucher View">
+  <GUID>GUID_VALUE</GUID>
+  <DATE>YYYYMMDD</DATE>
+  <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>
+  <CLASSNAME>Purchase @ 18 %</CLASSNAME>
+  <VOUCHERNUMBER>INVOICE_NO</VOUCHERNUMBER>
+  <PARTYLEDGERNAME>VENDOR_LEDGER</PARTYLEDGERNAME>
+  <ISINVOICE>Yes</ISINVOICE>
+  <NARRATION>NARRATION_TEXT</NARRATION>
+
+  <!-- GST header fields required when a class is active -->
+  <CMPGSTIN>COMPANY_GSTIN</CMPGSTIN>
+  <PARTYGSTIN>VENDOR_GSTIN</PARTYGSTIN>
+  <GSTREGISTRATIONTYPE>Regular</GSTREGISTRATIONTYPE>
+  <PLACEOFSUPPLY>STATE_NAME</PLACEOFSUPPLY>
+
+  <!-- Party (vendor) — credit side; use LEDGERENTRIES.LIST in Invoice Voucher View -->
+  <LEDGERENTRIES.LIST>
+    <LEDGERNAME>VENDOR_LEDGER</LEDGERNAME>
+    <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+    <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+    <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+    <BILLALLOCATIONS.LIST>
+      <NAME>INVOICE_NO</NAME>
+      <BILLTYPE>New Ref</BILLTYPE>
+      <AMOUNT>TOTAL_AMOUNT</AMOUNT>
+      <BILLDATE>YYYYMMDD</BILLDATE>
+    </BILLALLOCATIONS.LIST>
+  </LEDGERENTRIES.LIST>
+
+  <!-- Purchase / expense ledger (taxable value) -->
+  <LEDGERENTRIES.LIST>
+    <LEDGERNAME>PURCHASE_LEDGER</LEDGERNAME>
+    <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+    <AMOUNT>-TAXABLE_VALUE</AMOUNT>
+  </LEDGERENTRIES.LIST>
+
+  <!-- GST ledgers — class drives the split, but entries must still be explicit -->
+  <LEDGERENTRIES.LIST>
+    <LEDGERNAME>Input Cgst @ 9 %</LEDGERNAME>
+    <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+    <AMOUNT>-CGST_AMOUNT</AMOUNT>
+  </LEDGERENTRIES.LIST>
+
+  <LEDGERENTRIES.LIST>
+    <LEDGERNAME>Input Sgst @ 9 %</LEDGERNAME>
+    <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+    <AMOUNT>-SGST_AMOUNT</AMOUNT>
+  </LEDGERENTRIES.LIST>
+</VOUCHER>
 ```
 
 ### Mode 3 — As Voucher (classic accounting entry, fallback)
