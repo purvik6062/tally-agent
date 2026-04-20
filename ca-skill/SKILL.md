@@ -1,7 +1,7 @@
 ---
 emoji: 🧾
 name: tally-prime-ca
-version: 1.0.5
+version: 1.0.6
 author: Maxxit
 description: >-
   Full-service CA skill for TallyPrime running locally. Read accounting reports
@@ -99,7 +99,19 @@ To list companies, use the template in `reference/reports.md` (“Company list�
 
 ## Step 2: Verify/create required ledgers (masters)
 
-Ledger existence checks and master creation templates are in `reference/masters.md` (includes ledgers, groups, and GST/address fields).
+Ledger existence checks and master creation templates are in `reference/masters.md` (includes ledgers, groups, GST/address fields, and party ledger creation with required field prompts).
+
+**New company?** Run the "New Company Setup — Standard GST Ledgers" block in `reference/masters.md` first. It creates the seven minimum ledgers every GST-registered company needs:
+
+| # | Ledger | Type |
+|---|---|---|
+| 1 | `Input Sgst @ 9 %` | Input GST |
+| 2 | `Input Cgst @ 9 %` | Input GST |
+| 3 | `Input IGST @ 18 %` | Input GST |
+| 4 | `Purchase @ 18 %` | Purchase ledger |
+| 5 | `Round Off` | Rounding |
+| 6 | `Output Sgst @ 9 %` | Output GST |
+| 7 | `Output Cgst @ 9 %` | Output GST |
 
 Quick group defaults (common CA mapping):
 
