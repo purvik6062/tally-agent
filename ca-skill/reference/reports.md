@@ -61,6 +61,57 @@ Mandatory vars: `SVFROMDATE`, `SVTODATE`.
 </ENVELOPE>
 ```
 
+## Voucher Register (all vouchers by type, period)
+
+Use this to fetch specific voucher types (Payment, Receipt, Contra, Sales, Purchase, Journal, etc.) for a date range. Returns full voucher details with ledger entries and amounts.
+
+Mandatory vars: `SVFROMDATE`, `SVTODATE`. Optional filter: `SVVOUCHERTYPENAME` (specific voucher type).
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ENVELOPE>
+  <HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER>
+  <BODY>
+    <EXPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Voucher Register</REPORTNAME>
+        <STATICVARIABLES>
+          <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+          <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+          <SVFROMDATE>FROM_YYYYMMDD</SVFROMDATE>
+          <SVTODATE>TO_YYYYMMDD</SVTODATE>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+    </EXPORTDATA>
+  </BODY>
+</ENVELOPE>
+```
+
+**Filter by voucher type** (e.g., Payment only):
+
+Replace `<STATICVARIABLES>` block with:
+
+```xml
+<STATICVARIABLES>
+  <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+  <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+  <SVVOUCHERTYPENAME>Payment</SVVOUCHERTYPENAME>
+  <SVFROMDATE>FROM_YYYYMMDD</SVFROMDATE>
+  <SVTODATE>TO_YYYYMMDD</SVTODATE>
+</STATICVARIABLES>
+```
+
+| Voucher Type | Use Case |
+|--------------|----------|
+| `Payment` | Money out (expenses, payments to creditors, bank withdrawals) |
+| `Receipt` | Money in (payments from debtors, bank deposits) |
+| `Contra` | Bank-to-bank transfers, cash deposits/withdrawals |
+| `Journal` | Non-cash adjustments (depreciation, accruals, provisions) |
+| `Sales` | Sales invoices (goods/services) |
+| `Purchase` | Purchase invoices (goods/services) |
+| `Credit Note` | Sales returns / credit to customers |
+| `Debit Note` | Purchase returns / debit from suppliers |
+
 ## Trial Balance (period)
 
 Mandatory vars: `SVFROMDATE`, `SVTODATE`.

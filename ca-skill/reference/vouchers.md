@@ -912,3 +912,169 @@ Cancellation is similar to alteration, but uses `ACTION="Cancel"` for the identi
 
 For itemized invoices using `ALLINVENTORYENTRIES.LIST` and `ACCOUNTINGALLOCATIONS.LIST`, see `reference/inventory.md`.
 
+## Bank Statement Import Workflow
+
+When importing transactions from a bank statement, map each bank entry to the appropriate voucher type:
+
+### Mapping Rules
+
+| Bank Entry | Voucher Type | Debit Ledger | Credit Ledger |
+|------------|--------------|--------------|---------------|
+| Deposit / NEFT Credit / RTGS Credit / UPI Credit | **Receipt** | Bank/Cash | Customer/Party ledger (Sundry Debtors) |
+| Withdrawal / NEFT Debit / RTGS Debit / UPI Debit / Cheque Issued | **Payment** | Supplier/Expense ledger | Bank/Cash |
+| ATM Withdrawal | **Contra** | Bank (withdrawal from) | Cash (deposit to) |
+| Cash Deposit | **Contra** | Cash (withdrawal from) | Bank (deposit to) |
+| Bank-to-Bank Transfer | **Contra** | Source Bank | Destination Bank |
+| Interest Credit | **Receipt** | Bank | Interest Income ledger |
+| Bank Charges | **Payment** | Bank Charges ledger | Bank |
+| GST/TDS Payment | **Payment** | GST/TDS Duty ledger | Bank |
+
+### Pre-flight Checklist
+
+Before importing bank statement transactions:
+
+1. **Verify bank ledger exists** in Tally (create if missing)
+2. **Verify cash ledger exists** if importing ATM/deposit transactions
+3. **Verify party ledgers exist** — create unknown parties from statement first
+4. **Check voucher class configuration** — most bank vouchers don't use GST classes
+5. **Date format** — convert statement dates to `YYYYMMDD`
+6. **GUID pattern** — use `bankstmt-{bankAcct}-{date}-{seq}` for idempotency
+
+### Example: NEFT Credit (Receipt)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ENVELOPE>
+  <HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Receipt" ACTION="Create" OBJVIEW="Accounting Voucher View">
+            <GUID>bankstmt-bob-20260401-001</GUID>
+            <DATE>20260401</DATE>
+            <VOUCHERTYPENAME>Receipt</VOUCHERTYPENAME>
+            <NARRATION>NEFT Credit from ABC Traders Ref NEFT/123456</NARRATION>
+            <ISINVOICE>No</ISINVOICE>
+            <PARTYLEDGERNAME>ABC Traders</PARTYLEDGERNAME>
+
+            <!-- Bank (credit to account = negative in Tally) -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Bank Of Baroda </LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-50000</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- Customer (debit) -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>ABC Traders</LEDGERNAME>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <AMOUNT>50000</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>
+```
+
+### Example: NEFT Debit to Supplier (Payment)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ENVELOPE>
+  <HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Payment" ACTION="Create" OBJVIEW="Accounting Voucher View">
+            <GUID>bankstmt-bob-20260401-002</GUID>
+            <DATE>20260401</DATE>
+            <VOUCHERTYPENAME>Payment</VOUCHERTYPENAME>
+            <NARRATION>Payment to XYZ Suppliers via NEFT Ref NEFT/789012</NARRATION>
+            <ISINVOICE>No</ISINVOICE>
+            <PARTYLEDGERNAME>XYZ Suppliers</PARTYLEDGERNAME>
+
+            <!-- Supplier (expense = debit) -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>XYZ Suppliers</LEDGERNAME>
+              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-25000</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- Bank (credit from account = positive in Tally) -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Bank Of Baroda</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <AMOUNT>25000</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>
+```
+
+### Example: Bank Charges (Payment, no party)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ENVELOPE>
+  <HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>COMPANY_NAME</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Payment" ACTION="Create" OBJVIEW="Accounting Voucher View">
+            <GUID>bankstmt-bob-20260401-003</GUID>
+            <DATE>20260401</DATE>
+            <VOUCHERTYPENAME>Payment</VOUCHERTYPENAME>
+            <NARRATION>Bank Charges for Q1 FY 2026-27</NARRATION>
+            <ISINVOICE>No</ISINVOICE>
+
+            <!-- Bank Charges Expense -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Bank Charges</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+              <AMOUNT>-150</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+
+            <!-- Bank -->
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Bank Of Baroda</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+              <AMOUNT>150</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>
+```
+
+
+

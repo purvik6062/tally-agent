@@ -142,6 +142,7 @@ Use `TALLYREQUEST=Export` / `REPORTNAME=...` with `SVEXPORTFORMAT=$$SysName:XML`
 
 Common CA reports:
 
+- **Voucher Register** — fetch all vouchers or filter by type (Payment/Receipt/Contra/etc.) for a date range — use for banking transaction extracts
 - Day Book (period)
 - Trial Balance (period)
 - Balance Sheet
@@ -172,6 +173,14 @@ Examples:
 3. Fetch required ledgers/masters or create them.
 4. Only then post the voucher.
 5. Reply with: company, voucher type, voucher number, date, amount breakdown, and whether any masters were created.
+
+## Bank Statement Import
+
+When importing bank statement transactions (PDF/Excel from bank), use the mapping guide and templates in `reference/vouchers.md` → "Bank Statement Import Workflow". Covers:
+
+- Mapping bank entries to Receipt/Payment/Contra vouchers
+- Ledger selection rules (debits, credits, expenses)
+- Full XML templates for common bank transactions (NEFT, RTGS, UPI, charges)
 
 ## Advanced reference
 
